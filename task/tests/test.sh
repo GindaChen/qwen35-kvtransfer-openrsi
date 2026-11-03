@@ -4,4 +4,5 @@ python /tests/test_plan_integrity.py
 python /tests/test_layouts.py
 python /tests/test_candidate_policy.py
 python /tests/test_checker.py
+python /tests/test_results.py
 exec python /tests/evaluate.py

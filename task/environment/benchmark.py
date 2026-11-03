@@ -401,7 +401,11 @@ def validate_candidate_source(source):
                     "Only trusted extension build entrypoints may be imported"
                 )
             if any(
-                alias.name in host_modules | forbidden_modules or alias.name.startswith("__")
+                alias.name == "*"
+                or alias.name in host_modules | forbidden_modules
+                or alias.name.startswith("__")
+                or (alias.name in {"load", "save"}
+                    and node.module != "torch.utils.cpp_extension")
                 for alias in node.names
             ):
                 raise ValueError("Host module alias import prohibited")

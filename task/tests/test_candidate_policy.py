@@ -28,6 +28,8 @@ CASES = [
     ("torch_save", "import torch\ntorch.save({}, 'reward.json')\n", False),
     ("torch_load", "import torch\ntorch.load('payload.pt', weights_only=False)\n", False),
     ("triton_load", "import triton.language as tl\nx=tl.load(ptr)\n", True),
+    ("torch_load_alias", "from torch import load as run\n", False),
+    ("wildcard", "from torch import *\n", False),
     ("native_host_io", "src='system(\"do not run\");'\n", False),
     (
         "indirect_timer",
