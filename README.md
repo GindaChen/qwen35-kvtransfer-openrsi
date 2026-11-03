@@ -17,3 +17,7 @@ Sources: [DistServe](https://github.com/LLMServe/DistServe/tree/82831f1604cc6b10
 The proposal review found that candidate-visible plan mutation could alter correctness selections. The revised evaluator keeps independent private maps/tensor descriptors, validates the exposed metadata, and checks original output allocations. Regression tests cover empty/rebound maps, in-place resize/value mutation, scalar mutation and output rebinding.
 
 [Post-initial-jump research curve](docs/post-initial-jump.png) and [gain timeline](docs/gain-timeline.md) show measured pilot progress. Raw native transcripts contain operator connection details and are not published in this repository. A privacy-compatible trajectory delivery policy is being requested from maintainers. The historical pilot remains distinct from an official RSI-Harness run.
+
+## Protocol0.2 (pending GPU validation)
+
+The revised suite has192 cases with three allocation regimes and broader finite payloads. It retains evaluator-owned maps/descriptors, rejects candidate mutations and compares payload bits. The historical pilot and post-jump figure still describe protocol0.1's128 cases. See task/tests/test_plan_integrity.py and test_layouts.py. No updated proposal or official run is claimed until the revised suite passes validation on the target machine.

@@ -41,3 +41,9 @@ GPU work must run only under an operator-provided valid allocation. Machine iden
 ## Evaluator plan integrity
 
 The evaluator retains private original maps and tensor references. Each candidate call receives cloned CPU maps and detached tensor aliases with independent shape metadata. After the call, validate every map, scalar and tensor descriptor against private originals, then check payloads using only evaluator-owned maps/references and private source snapshots. Changing candidate-visible selections cannot shrink the checked work. The mutable-plan bypass found by proposal review is covered by regression tests. This remains practical correctness enforcement, not a sandbox against arbitrary native-code memory introspection.
+
+## Protocol0.2 randomization
+
+The current suite has192 cases: three layouts x four TP pairs x eight contexts x two batch sizes. Contiguous is a diagnostic control. Uniform fragmentation selects independent source/destination pages from pools with holes. Fragmented runs independently permute source runs of8 pages and destination runs of5 pages, then jointly shuffle the logical page-pair schedule across requests. Separate derived RNG streams govern each side, schedule, and source/destination state slots. Fixed development seeds reproduce maps; scored paired implementations receive one evaluator-generated map seed. Payloads remain fresh and use broad finite BF16/FP32 bit patterns; alternating guard poison and raw-bit checks cover stale data and signed-zero changes. Randomization, alias preparation, snapshotting and validation are outside transfer timing, while candidate-side metadata packing/upload remains timed.
+
+The historical128-case measurements above are pilot evidence. Do not relabel their scores or curves as192-case results.

@@ -1,0 +1,19 @@
+{
+  "protocol": "0.2.0",
+  "scored_cases": 192,
+  "layouts": [
+    "contiguous",
+    "fragmented",
+    "fragmented_runs"
+  ],
+  "plan_tests_passed": 7,
+  "layout_tests_passed": 5,
+  "source_policy_cases_passed": 8,
+  "gpu_smoke_reference_cases_passed": 12,
+  "gpu_smoke_best_cases_passed": 12,
+  "full_192_case_validation": "pending",
+  "official_harness_validation": "pending",
+  "reported_map_bypass": "rejected",
+  "native_trace_publication": "withheld for privacy review",
+  "evaluator_sha256": "4e67f4dc32a9b41785cfd000419d47937c40b1796689e2fbd8e56dbed47a9320"
+}
