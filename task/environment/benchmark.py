@@ -112,6 +112,32 @@ def check_source(plan,snapshot):
   for name,t in original.items():
    if not torch.equal(t,expected[name]):raise AssertionError('Source changed: '+name)
 
+def candidate_view(plan):
+ """Candidate receives private metadata copies and tensor aliases, never Judge state.
+ Tensor detach() gives independent shape/stride metadata while sharing payload storage.
+ """
+ view={key:value for key,value in plan.items() if key not in ('src','dst','src_pages','dst_pages','src_slots','dst_slots')}
+ for key in ('src_pages','dst_pages','src_slots','dst_slots'):view[key]=plan[key].clone()
+ for group in ('src','dst'):
+  view[group]=[{name:t.detach() for name,t in rank.items()} for rank in plan[group]]
+ return view
+
+def validate_candidate_view(view, trusted):
+ """Reject map/scalar/tensor-descriptor mutation, using only evaluator-owned state."""
+ if type(view) is not dict or view.keys()!=trusted.keys():raise AssertionError('Plan structure changed')
+ for key in ('p','d','bs','ctx','cap','slotcap'):
+  if type(view[key]) is not int or view[key]!=trusted[key]:raise AssertionError('Plan scalar changed: '+key)
+ for key in ('src_pages','dst_pages','src_slots','dst_slots'):
+  given,expected=view[key],trusted[key]
+  if type(given) is not torch.Tensor or given.device!=expected.device or given.dtype!=expected.dtype or given.shape!=expected.shape or not torch.equal(given,expected):raise AssertionError('Plan map changed: '+key)
+ for group in ('src','dst'):
+  if type(view[group]) is not list or len(view[group])!=len(trusted[group]):raise AssertionError('Plan ranks changed')
+  for given_rank,expected_rank in zip(view[group],trusted[group]):
+   if type(given_rank) is not dict or given_rank.keys()!=expected_rank.keys():raise AssertionError('Plan state keys changed')
+   for name,expected in expected_rank.items():
+    given=given_rank[name]
+    if type(given) is not torch.Tensor or given.dtype!=expected.dtype or given.device!=expected.device or given.shape!=expected.shape or given.stride()!=expected.stride() or given.storage_offset()!=expected.storage_offset() or given.data_ptr()!=expected.data_ptr():raise AssertionError('Plan tensor descriptor changed: '+name)
+
 def load_candidate(path):
  spec=importlib.util.spec_from_file_location('candidate',path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
  return m.transfer
@@ -121,17 +147,19 @@ def run_case(fn,p,d,bs,ctx,layout,warmup,samples,seed):
  try:
   for generation in [1,2]:
    fill(plan,generation);sync();before=snapshot_source(plan)
-   fn(plan);sync();check(plan,before)
+   exposed=candidate_view(plan)
+   fn(exposed);sync();validate_candidate_view(exposed,plan);check(plan,before)
    check_source(plan,before);del before
    # Next generation permutes maps again, including slot reuse.
    plan.update(maps(bs,ctx,layout=='fragmented',seed+generation+1337))
   times=[]
   for i in range(warmup+samples):
    plan.update(maps(bs,ctx,layout=='fragmented',seed+i+8192));fill(plan,i+3);before=snapshot_source(plan);sync()
-   start=time.perf_counter_ns();fn(plan);sync();elapsed=(time.perf_counter_ns()-start)/1000
+   exposed=candidate_view(plan)
+   start=time.perf_counter_ns();fn(exposed);sync();elapsed=(time.perf_counter_ns()-start)/1000
    if i>=warmup:times.append(elapsed)
    # Check the measured result too; every measured invocation has new data/maps.
-   check(plan,before);check_source(plan,before);del before
+   validate_candidate_view(exposed,plan);check(plan,before);check_source(plan,before);del before,exposed
   allocated=[torch.cuda.max_memory_allocated(i) for i in range(4)]
   physical=2*bs*math.ceil(ctx/BLOCK)*BLOCK*2*256*2*10+bs*64471040
   return dict(p=p,d=d,bs=bs,ctx=ctx,layout=layout,correct=True,median_us=statistics.median(times),samples_us=times,useful_bytes=bs*(ctx*20480+64471040),page_payload_bytes=physical,peak_allocated=allocated)

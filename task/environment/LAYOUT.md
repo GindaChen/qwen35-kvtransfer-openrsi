@@ -36,4 +36,8 @@ TP2 convolution must shard each Q/K/V segment independently. At TP1: Q2048|K2048
 - `dispatch.py`: verifies holder PID and fresh ticket status, pins to the delegated node, kills its own subprocess on timeout/ticket loss; preserves the outer hold.
 - `AGENTS.md`: allowed research scope and commands.
 
-GPU work runs on hpc-rack-1-10 devices0–3 under user-authorized existing ticket PID1030870, request1102-164354-1. Existing 2GiB/device memory holders remain idle and intact; they reserve Ray GPU resources. The pinned executor therefore requests zero additional logical Ray GPUs and explicitly selects only the four delegated physical devices. No other allocation is used.
+GPU work must run only under an operator-provided valid allocation. Machine identities, SSH settings, connection addresses and ticket records belong in private operator logs, not published task artifacts.
+
+## Evaluator plan integrity
+
+The evaluator retains private original maps and tensor references. Each candidate call receives cloned CPU maps and detached tensor aliases with independent shape metadata. After the call, validate every map, scalar and tensor descriptor against private originals, then check payloads using only evaluator-owned maps/references and private source snapshots. Changing candidate-visible selections cannot shrink the checked work. The mutable-plan bypass found by proposal review is covered by regression tests. This remains practical correctness enforcement, not a sandbox against arbitrary native-code memory introspection.
