@@ -339,6 +339,16 @@ def validate_candidate_source(source):
     if source.strip() == "from benchmark import reference as transfer":
         return
     allowed_roots = {"torch", "triton", "math"}
+    # These public torch re-exports expose Python execution and file/network APIs.
+    # An import-root allowlist alone does not constrain those capabilities.
+    forbidden_modules = {"serialization", "pickle", "hub", "package"}
+    device_api_names = {"triton"}
+    for item in ast.walk(tree):
+        if isinstance(item, ast.Import):
+            device_api_names.update(a.asname or "triton" for a in item.names
+                                    if a.name.split(".")[0] == "triton")
+        elif isinstance(item, ast.ImportFrom) and item.module and item.module.split(".")[0] == "triton":
+            device_api_names.update(a.asname or a.name for a in item.names)
     host_modules = {
         "os",
         "sys",
@@ -368,15 +378,11 @@ def validate_candidate_source(source):
         "input",
     }
 
-    def root_name(node):
-        while isinstance(node, ast.Attribute):
-            node = node.value
-        return node.id if isinstance(node, ast.Name) else None
-
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.split(".")[0] not in allowed_roots:
+                if (alias.name.split(".")[0] not in allowed_roots
+                    or forbidden_modules.intersection(alias.name.split("."))):
                     raise ValueError(
                         "Candidate import outside transfer API: " + alias.name
                     )
@@ -385,6 +391,7 @@ def validate_candidate_source(source):
                 node.level
                 or not node.module
                 or node.module.split(".")[0] not in allowed_roots
+                or forbidden_modules.intersection(node.module.split("."))
             ):
                 raise ValueError("Candidate import outside transfer API")
             if node.module == "torch.utils.cpp_extension" and any(
@@ -394,7 +401,7 @@ def validate_candidate_source(source):
                     "Only trusted extension build entrypoints may be imported"
                 )
             if any(
-                alias.name in host_modules or alias.name.startswith("__")
+                alias.name in host_modules | forbidden_modules or alias.name.startswith("__")
                 for alias in node.names
             ):
                 raise ValueError("Host module alias import prohibited")
@@ -409,13 +416,21 @@ def validate_candidate_source(source):
                 "Candidate reflection/I-O/evaluation call prohibited: " + node.func.id
             )
         elif isinstance(node, ast.Attribute):
-            if node.attr.startswith("_") or node.attr in host_modules:
+            if node.attr.startswith("_") or node.attr in host_modules | forbidden_modules:
                 raise ValueError("Candidate private/module introspection prohibited")
-            if (
-                isinstance(node.ctx, (ast.Store, ast.Del))
-                and root_name(node) in allowed_roots
-            ):
-                raise ValueError("Candidate module monkeypatch prohibited")
+            if node.attr in {"load", "save"}:
+                owner = node.value
+                while isinstance(owner, ast.Attribute):
+                    owner = owner.value
+                device_api = isinstance(owner, ast.Name) and owner.id in device_api_names
+                extension_api = isinstance(node.value, ast.Attribute) and node.value.attr == "cpp_extension"
+                if not (device_api or extension_api):
+                    raise ValueError("Candidate serialization/file API prohibited")
+            # Module roots are not stable identities: import aliases, local aliases,
+            # containers and function returns all bypass a root-name check. Transfer
+            # code writes tensor contents through methods/indexing, not attributes.
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                raise ValueError("Candidate attribute monkeypatch prohibited")
     host_access = r"\b(?:system|popen|fopen|freopen|dlopen|dlsym|ptrace|fork|execve|syscall|PyImport_ImportModule|PyRun_SimpleString)\s*\(|std::(?:filesystem|ifstream|ofstream|fstream)"
     if re.search(host_access, source):
         raise ValueError(
