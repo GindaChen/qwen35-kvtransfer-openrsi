@@ -4,9 +4,9 @@ OpenRSI contribution source by Junda Chen. Apache-2.0.
 
 The starting reference, evaluator, and proposed Harbor1.4 task live in `task/`. This is a transfer-only benchmark derived from Qwen3.5-35B-A3B state shapes: full-attention KV, GDN convolution, and GDN recurrent state. It needs no model weights or forward pass.
 
-Four TP pairs (1→1,1→2,2→1,2→2), eight context lengths, batches1/4, contiguous and independently fragmented page maps form128 cases. All selected physical pages are transferred in full; sources and unselected holes must remain unchanged. See task/instruction.md and task/environment/LAYOUT.md.
+Protocol 0.2 has 192 cases: four TP pairs (1→1,1→2,2→1,2→2), eight context lengths, batches 1/4, and three layouts (contiguous, independently random fragmentation, and independently fragmented runs with shuffled logical page pairs). All selected physical pages are transferred in full; sources and unselected holes must remain unchanged. See task/instruction.md and task/environment/LAYOUT.md.
 
-A six-hour custom Codex/Ray pilot passed128 cases and reached3.8063x geometric-mean speedup over the Torch reference, with3.8056x confirmation. This is preliminary engineering evidence, not an official RSI-Harness result. Historical reference used10 samples; final candidates50. The proposed Harbor evaluator uses50 samples for both. Native proposal/research traces will be delivered to the generated private task repository through the official workflow.
+A six-hour custom Codex/Ray pilot passed128 cases and reached3.8063x geometric-mean speedup over the Torch reference, with3.8056x confirmation. This is preliminary engineering evidence, not an official RSI-Harness result. Historical reference used10 samples; final candidates50. The proposed Harbor evaluator uses50 samples for both. Native proposal/research traces remain withheld pending an approved privacy-compatible protocol; no original native transcript has been uploaded.
 
 The image recipe and Harbor adapter have passed static syntax/layout checks. Docker build, full dependency/base-image digest lock, official validator, and genuine Harness trajectory remain pending. Source and task layout are public so the task builder can materialize the exact baseline. The winning kernel is not a starting artifact.
 
@@ -18,6 +18,6 @@ The proposal review found that candidate-visible plan mutation could alter corre
 
 [Post-initial-jump research curve](docs/post-initial-jump.png) and [gain timeline](docs/gain-timeline.md) show measured pilot progress. Raw native transcripts contain operator connection details and are not published in this repository. A privacy-compatible trajectory delivery policy is being requested from maintainers. The historical pilot remains distinct from an official RSI-Harness run.
 
-## Protocol0.2 (pending GPU validation)
+## Protocol 0.2 validation
 
-The revised suite has192 cases with three allocation regimes and broader finite payloads. It retains evaluator-owned maps/descriptors, rejects candidate mutations and compares payload bits. The historical pilot and post-jump figure still describe protocol0.1's128 cases. See task/tests/test_plan_integrity.py and test_layouts.py. No updated proposal or official run is claimed until the revised suite passes validation on the target machine.
+The revised suite has192 cases with three allocation regimes and broader finite payloads. It retains evaluator-owned maps/descriptors, rejects candidate mutations and compares payload bits. The historical pilot and post-jump figure still describe protocol0.1's128 cases. See task/tests/test_plan_integrity.py and test_layouts.py. Full matched GB200 development checks are tracked in `protocol02-validation-summary.json`. Functional transfer checks are separate from evaluation integrity. [The integrity audit](docs/evaluator-audit.md) documents reproduced bypasses and the remaining shared-process boundary; `python tools/audit_boundary.py` currently exits 1. No official validator or Harness run is claimed.

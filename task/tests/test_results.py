@@ -3,7 +3,9 @@ import itertools
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
+import evaluate
 from evaluate import load
 
 def rows():
@@ -22,6 +24,14 @@ class Results(unittest.TestCase):
             return load(p)
     def test_complete_suite(self):
         self.assertEqual(len(self.read(rows())),192)
+    def test_official_scoring_refuses_unimplemented_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log=Path(tmp)/'verifier'
+            with mock.patch.object(evaluate,'LOG',log):
+                with self.assertRaisesRegex(RuntimeError,'Official scoring disabled'):
+                    evaluate.main()
+            self.assertFalse((log/'reward.json').exists())
+            self.assertEqual(json.loads((log/'failure.json').read_text())['status'],'unscored')
     def test_invalid(self):
         for change in ['duplicate','missing','truthy','median','nan','negative','count']:
             with self.subTest(change=change):

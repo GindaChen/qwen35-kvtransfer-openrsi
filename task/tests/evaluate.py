@@ -41,9 +41,20 @@ def load(path):
     return keyed
 
 
+def require_candidate_isolation():
+    # Development transfer checks may run through benchmark.py. Replace this
+    # refusal with an implemented, adversarially tested authority boundary.
+    # A source-policy pass or an environment-variable assertion is not proof.
+    raise RuntimeError(
+        "Official scoring disabled: candidate shares checker/timer process; "
+        "see docs/evaluator-audit.md and tools/audit_boundary.py"
+    )
+
+
 def main():
     LOG.mkdir(parents=True, exist_ok=True)
     try:
+        require_candidate_isolation()
         env = dict(os.environ, PYTHONPATH="/opt/kv-transfer")
         map_seed = secrets.randbits(
             63
