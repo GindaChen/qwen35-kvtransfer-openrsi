@@ -1,0 +1,44 @@
+{
+  "torch": "2.10.0+cu130",
+  "cuda": "13.0",
+  "devices": [
+    {
+      "name": "NVIDIA GB200",
+      "capability": [
+        10,
+        0
+      ],
+      "memory_bytes": 197897617408
+    },
+    {
+      "name": "NVIDIA GB200",
+      "capability": [
+        10,
+        0
+      ],
+      "memory_bytes": 197897617408
+    },
+    {
+      "name": "NVIDIA GB200",
+      "capability": [
+        10,
+        0
+      ],
+      "memory_bytes": 197897617408
+    },
+    {
+      "name": "NVIDIA GB200",
+      "capability": [
+        10,
+        0
+      ],
+      "memory_bytes": 197897617408
+    }
+  ],
+  "protocol_version": "0.2.0",
+  "seed_mode": "provided",
+  "mode": "private-best-candidate.py",
+  "scope": "synthetic transfer kernels only; no model forward; no vLLM IPC or NIXL service overhead",
+  "block_size": 128,
+  "started_at": 1793739872.7600212
+}

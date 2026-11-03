@@ -25,7 +25,7 @@ The result loader now requires literal `correct=true`, 50 finite positive sample
 
 ## Remaining concrete boundary failures
 
-A third **executed** CPU proof uses `torch.library.Library("aten", "IMPL", "CPU").impl("equal", lambda a, b: True)`. The revised source policy accepts this public dispatch-registration API. Keeping the registry alive makes `bit_equal` accept unequal tensors. `tools/audit_boundary.py` reproduces this in a disposable process and exits 1 when breached. It is an explicit remaining failing integrity probe, not a passing regression or a GPU transfer test. Native registration provides the same class of attack. This remains unresolved; no claim of evaluation-integrity validation is made.
+A third **executed** CPU and GB200 CUDA proof uses `torch.library.Library("aten", "IMPL", dispatch).impl("equal", lambda a, b: True)`, with dispatch set to `CPU` or `CUDA`. The revised source policy accepts this public dispatch-registration API. Keeping the registry alive makes `bit_equal` accept unequal tensors. `tools/audit_boundary.py` reproduces this in a disposable process (`--device cuda:0` on a delegated GB200 GPU) and exits 1 when breached. It is an explicit remaining failing integrity probe, not a passing regression or a GPU transfer test. Native registration provides the same class of attack. This remains unresolved; no claim of evaluation-integrity validation is made.
 
 `load_candidate` executes the candidate module in the same process as `check`, `check_source`, `sync` and the timer. Private Python references and detached tensor metadata do not separate native address spaces. The candidate may compile a C++/CUDA extension using the supplied extension API.
 
@@ -40,3 +40,11 @@ The task currently does not invoke the Harness's `rsi-isolate` facility. That fa
 The official adapter now refuses scoring before candidate import and writes an unscored failure, with a regression test requiring no reward file. Development benchmark runs remain available. This is a fail-closed stop, not a completed isolation implementation.
 
 A process/IPC refactor can affect the current callable latency metric and cache/setup contract. Its transfer and timing semantics need to be explicit before those measurements are treated as the accepted scientific protocol. Until then, full-suite runs are development functional/performance evidence only, and the integrity issue remains open.
+
+## Matched protocol-0.2 development evidence
+
+Both the reference and unchanged saved candidate passed all 192 cases on four GB200 GPUs, with matched map seeds, 10 warmups and 50 measured samples per case. The observed geometric-mean speedup was 3.649695744x over naive Torch; all 192 case medians improved. The pair took 673.96 seconds, including candidate setup and correctness checking. Raw timing rows and hardware-only metadata are preserved under `docs/protocol02/`; hashes and limitations are in `protocol02-validation-summary.json`. The benchmark bytes match tested commit `dd6ea94fdfcb4e71d5a26af88e8169cc1527365c`. These measurements do not resolve the integrity failures above.
+
+The earlier 3.8063x result and learning curves remain the historical 128-case protocol-0.1 pilot. No new research learning curve or official Harness trajectory has been generated. Raw native transcripts and operator logs remain withheld for privacy review.
+
+The GB200 follow-up also passed all three result-parser/fail-closed tests. A read-only target capability probe found no Docker, Apptainer, RSI-Harness executable or Docker socket; a supported operator site profile has not been established. No extra allocation or unsupported Ray Harness backend was introduced.

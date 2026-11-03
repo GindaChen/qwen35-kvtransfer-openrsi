@@ -1,0 +1,8 @@
+{
+  "source_policy": "accepted",
+  "device": "cuda:0",
+  "unequal_payloads_equal_before": false,
+  "unequal_payloads_equal_after": true,
+  "integrity_probe": "breached",
+  "evidence_kind": "target integrity-probe report; not a native transcript"
+}

@@ -1,19 +1,84 @@
 {
   "protocol": "0.2.0",
-  "scored_cases": 192,
-  "layouts": [
-    "contiguous",
-    "fragmented",
-    "fragmented_runs"
-  ],
-  "plan_tests_passed": 7,
-  "layout_tests_passed": 5,
-  "source_policy_cases_passed": 8,
-  "gpu_smoke_reference_cases_passed": 12,
-  "gpu_smoke_best_cases_passed": 12,
-  "full_192_case_validation": "pending",
-  "official_harness_validation": "pending",
-  "reported_map_bypass": "rejected",
-  "native_trace_publication": "withheld for privacy review",
-  "evaluator_sha256": "4e67f4dc32a9b41785cfd000419d47937c40b1796689e2fbd8e56dbed47a9320"
+  "evaluation_kind": "matched GB200 development validation, not official RSI-Harness execution",
+  "tested_source_commit": "dd6ea94fdfcb4e71d5a26af88e8169cc1527365c",
+  "benchmark_sha256": "f2295f959cff8a387f059d371226245a1338998c66b9bcce27d1855961c6fd47",
+  "candidate_sha256": "789254fcae047af186ea70a8077a807daab734b50d954050ef9399b0781aa32f",
+  "candidate_origin": "unchanged saved historical pilot candidate, excluded from starting task artifacts",
+  "development_pair_wall_seconds": 673.964510679245,
+  "hardware": "4 NVIDIA GB200 GPUs, one existing user-delegated held node",
+  "torch": "2.10.0+cu130",
+  "cuda": "13.0",
+  "reference_cases_passed": 192,
+  "candidate_cases_passed": 192,
+  "warmups_per_case_per_implementation": 10,
+  "samples_per_case_per_implementation": 50,
+  "initial_correctness_calls_per_case_per_implementation": 2,
+  "matched_map_seed": true,
+  "payloads": "fresh each invocation; independently generated between implementations",
+  "geometric_mean_speedup": 3.649695744230009,
+  "wins": 192,
+  "tp_speedups": {
+    "1->1": 2.5860683810206995,
+    "1->2": 3.3096352889901564,
+    "2->1": 3.2530590566912085,
+    "2->2": 6.372569109327641
+  },
+  "layout_speedups": {
+    "contiguous": 3.6498399045329504,
+    "fragmented": 3.6493500756320785,
+    "fragmented_runs": 3.649897277306524
+  },
+  "reference_variability": {
+    "median_relative_sample_iqr": 0.01077718737489044,
+    "note": "Within-case descriptive spread only; does not bound sequential reference/candidate drift."
+  },
+  "candidate_variability": {
+    "median_relative_sample_iqr": 0.0024600138895517986,
+    "note": "Within-case descriptive spread only; does not bound sequential reference/candidate drift."
+  },
+  "functional_transfer_status": "all 192 cases passed for each implementation",
+  "evaluation_integrity_status": "FAIL: executable dispatch-registration checker bypass remains; same-process native boundary",
+  "official_harness_validation": "not run",
+  "official_harness_execution": "not run",
+  "research_budget_hours": 6,
+  "official_research_started": false,
+  "historical_pilot": {
+    "protocol": "0.1",
+    "cases": 128,
+    "speedup": 3.8062665798740105,
+    "comparison": "historical naive Torch baseline, not NIXL"
+  },
+  "native_trace_publication": "withheld; privacy-compatible protocol unresolved",
+  "scope": "all three state families; no model weights, forward pass, decode test or NIXL service benchmark",
+  "sha256": {
+    "reference-v02.jsonl": "56fc3ec5b85f93378b46de6a2a38b8a4725a55f92c085f21c0a74a1ae50bdab8",
+    "reference-v02.environment.json": "0e7c76dcd5a6b7f199c72dd44f949218e3787b2ebebdcbee2b6caa549512c7c3",
+    "candidate-v02.jsonl": "8ef25656a124ef351b6d85c5dcd43fa22ac8e962b84052c37d17d950ac04d3dd",
+    "candidate-v02.environment.json": "47446cef7856130206833eca4bed5f43fdcbdea619066c5e265da49468d294ff"
+  },
+  "regressions_on_GB200": {
+    "plan_tests": 7,
+    "layout_tests": 5,
+    "source_policy_examples": 20,
+    "checker_tests": 5,
+    "result_parser_tests": 3
+  },
+  "official_adapter": "fail-closed before candidate import; no reward emitted while isolation is unresolved",
+  "cuda_integrity_probe": {
+    "source_policy": "accepted",
+    "device": "cuda:0",
+    "unequal_payloads_equal_before": false,
+    "unequal_payloads_equal_after": true,
+    "integrity_probe": "breached",
+    "evidence_kind": "target integrity-probe report; not a native transcript"
+  },
+  "target_runtime_probe": {
+    "apptainer": false,
+    "docker": false,
+    "rsi_harness": false,
+    "docker_socket": false,
+    "codex_binary_present": true,
+    "operator_site_profile": "not established; no unsupported Ray Harness backend introduced"
+  }
 }
