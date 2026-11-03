@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/OpenRSI-Foundation/OpenRSI-Index",
+  "commit": "eca7d9e4857900ef8485a1f2137eb51bdc2dcc33",
+  "task_schema": "1.4",
+  "source_model": "Qwen/Qwen3.5-35B-A3B",
+  "model_revision": "59d61f3ce65a6d9863b86d2e96597125219dc754",
+  "model_weights_required": false,
+  "source_vllm_commit": "40837c5d0e5840c3143f917017cbfd31d07755e0"
+}

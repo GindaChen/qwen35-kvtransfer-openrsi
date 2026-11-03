@@ -1,0 +1,23 @@
+{
+  "overall_speedup": 3.8062665798740105,
+  "confirmation_speedup": 3.8055615759026415,
+  "cases": 128,
+  "wins": 128,
+  "tp_speedups": {
+    "1->1": 2.648807194523975,
+    "1->2": 3.4709949026728713,
+    "2->1": 3.402307637601231,
+    "2->2": 6.709944123789904
+  },
+  "layout_speedups": {
+    "contiguous": 3.807954515192987,
+    "fragmented": 3.804579392758729
+  },
+  "candidate_sha256": "789254fcae047af186ea70a8077a807daab734b50d954050ef9399b0781aa32f",
+  "elapsed_seconds": 21596.539569854736,
+  "baseline_samples": 10,
+  "candidate_samples": 50,
+  "baseline_id": "025446-5eb6535d",
+  "candidate_id": "074859-0346dca7",
+  "confirmation_id": "082418-2703773d"
+}

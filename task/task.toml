@@ -1,0 +1,39 @@
+schema_version = "1.4"
+[task]
+name = "rsi/qwen35-hybrid-kvtransfer-gb200"
+version = "0.1.0"
+description = "Optimize all three Qwen3.5 state transfers across TP1/TP2 on four GB200 GPUs."
+[metadata]
+author_name = "Junda Chen"
+author_email = "junda@ucsd.edu"
+category = "ML"
+subcategory = "Kernels"
+tags = ["autoresearch", "cuda", "kv-transfer", "gb200", "tensor-parallel", "hybrid-state"]
+expert_time_estimate_hours = 6.0
+[metadata.rsi_harness.verifier]
+gpus = 4
+[environment]
+os = "linux"
+cpus = 16
+memory_mb = 262144
+storage_mb = 102400
+build_timeout_sec = 7200
+workdir = "/workspace"
+gpus = 4
+gpu_types = ["NVIDIA GB200"]
+network_mode = "no-network"
+[environment.env]
+CUDA_HOME = "/usr/local/cuda"
+TORCH_CUDA_ARCH_LIST = "10.0"
+MAX_JOBS = "16"
+CMAKE_BUILD_PARALLEL_LEVEL = "16"
+NVCC_THREADS = "1"
+OMP_NUM_THREADS = "8"
+PYTHONPATH = "/opt/kv-transfer"
+[agent]
+timeout_sec = 21600
+network_mode = "no-network"
+[verifier]
+timeout_sec = 3600
+network_mode = "no-network"
+environment_mode = "shared"
