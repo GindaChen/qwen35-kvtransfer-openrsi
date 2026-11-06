@@ -4,3 +4,5 @@ setuptools==80.9.0
 packaging==25.0
 # CUDA driver VMM bindings for the protocol-0.3 controller/worker (verified on GB200 runtime).
 cuda-bindings==13.0.3
+# torch.as_tensor(__cuda_array_interface__) for the dedicated VMM buffers needs NumPy (found missing in the first image build, 2026-11-06).
+numpy==2.2.6

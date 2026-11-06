@@ -5,7 +5,10 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+# Repository layout (task/tests next to task/environment) or the task image
+# (/tests and /opt/kv-transfer).
 ROOT=Path(__file__).resolve().parents[1]/'environment'
+if not ROOT.is_dir():ROOT=Path('/opt/kv-transfer')
 
 class Guard(unittest.TestCase):
     def test_native_syscalls(self):

@@ -193,8 +193,440 @@
     "note": "earlier run of the same design before seed hardening"
   },
   "remaining_gaps": [
-    "2 GiB/GPU scratch cap is a contract, not enforced",
-    "root uid mode / container image not exercised",
+    "(original 2026-11-06 run) 2 GiB/GPU scratch cap not enforced -> enforced, see followup_20261106",
+    "(original) root uid mode / container image not exercised -> exercised in the task image on x86_64 B200, see followup_20261106; arm64 GB200 container still not exercised",
     "no official Harness/Judge execution claimed"
-  ]
+  ],
+  "followup_20261106": {
+    "purpose": "Close the obligations in the 2026-11-06 PASS review: enforce the 2 GiB/GPU scratch cap, validate root (uid) mode in the task image, record preflight wall time.",
+    "code_sha256": {
+      "task/environment/Dockerfile": "76887c5e20398f57d4625bc49d3871b564b39228f74209c8410912e3ccd1794d",
+      "task/environment/benchmark.py": "6547606b8825008f803f7c412651c5fad62f28b962a1116682d891a4b22b50eb",
+      "task/environment/gpu_isolate.py": "6658a4156e451708afbff3e509f0f9c728c6b4c6cf3cfa1db6f90f18f5edeb52",
+      "task/environment/isolated_benchmark.py": "25700a0615776847af827ec367aa578870e7e57bf79fd813a7c21bc6e5ea6329",
+      "task/environment/isolated_worker.py": "308d26443403ffef27d866f6ca9b0dd371c9931ccbc8fa18c46497c4185c5aad",
+      "task/environment/isolation/__init__.py": "4842654a7cbe6c0d2f5c64dc0a79ad5a2e4c1d41250f7c950499e190761d1af1",
+      "task/environment/isolation/gpumem.py": "0d07e8b5f08a98368818c980f36d18d96a2e3fba3632bfc42b543be74491cef2",
+      "task/environment/isolation/guard.py": "0b29abb1efac3006b176769df0dbbb6861440fc0e466f4283818e26becb7c72b",
+      "task/environment/isolation/vmm.py": "63b14e00fc25c76654ab58517f109b364b9a53e2448916a9c9621fd9fabac7f9",
+      "task/environment/isolation/wire.py": "a1d97928a592416746b92829d17ac88e92a5435c8296bded58935786acbd436b",
+      "task/environment/requirements.txt": "c6f5e43b314acde9c31ab213ec6039f025623f52821f474a5938da60792587ed",
+      "task/tests/evaluate.py": "a9885ac0bc5069915a97604a3157598c320612e27a8b3a6caec25eb38eef2f6e",
+      "task/tests/test.sh": "ce07f12d84d6c530831a4e9fc567f2d5ec575212338feb309b5a6aee80939053",
+      "task/tests/test_candidate_policy.py": "7955ef4ec57b4b8658d4320d85ab123e0e1cfbd00e0dec46e95ccf024a0a9baf",
+      "task/tests/test_checker.py": "a0152b7650ee15fabca33459f8176c83715d6670bc15122bdcf54aa6201a2ead",
+      "task/tests/test_gpumem.py": "8b80d97f05a67fa5ed7fc8e2ffaf20cc81bbdac87104248dd79e7c4fa91b6bef",
+      "task/tests/test_guard.py": "a143fb411358347afb18747a6ae1532111f57f242f995aad3797e971bf8ddd61",
+      "task/tests/test_layouts.py": "c67a85b7868c8e7fdc0a5c615918754788a13ca5bb6c5e1801c3f19ec8e84df5",
+      "task/tests/test_plan_integrity.py": "b50bea2ddcd0790ac62da898a1ed69920fa99bae22819bdc60c3d2d450eb8d15",
+      "task/tests/test_results.py": "ba290144ea6652b160a37e0bb695c18c952eb7d78a89a9f9118a997d72909d29",
+      "task/tests/test_wire.py": "444440121e223cf694935e976c79fd5e19e000bfa935348a85a0cd0afbb0bb08",
+      "task/tests/validate_isolation.py": "188157177007df4a908d26f615c7c2e1cc9705eb06ce058a11e535cc551d463e"
+    },
+    "code_note": "Hashes of the committed files; the B200 container and the GB200 node ran byte-identical copies (Dockerfile only used on B200).",
+    "candidate_sha256": "789254fcae047af186ea70a8077a807daab734b50d954050ef9399b0781aa32f",
+    "gb200_native_landlock": {
+      "node": "hpc-rack-1-6 (one raycluster ticket, 4x NVIDIA GB200, Linux 6.8.0-1055-nvidia-64k, Landlock ABI 4)",
+      "ticket": "granted 2026-11-06T18:12:36Z, released 2026-11-06T18:34:51Z",
+      "unit_tests": "36 tests in 8 files OK (adds test_gpumem)",
+      "boundary_audit": {
+        "in_process_protocol_0_2": "breached (exit 1, expected)",
+        "isolated_protocol_0_3": "contained (exit 0)"
+      },
+      "adversarial_preflight": {
+        "protocol": "0.3.0",
+        "status": "passed",
+        "cases": [
+          {
+            "name": "reference",
+            "status": "passed",
+            "median_us": 2111.576,
+            "scratch_peak_gib": [
+              0.152,
+              0.152,
+              0.0,
+              0.0
+            ],
+            "seconds": 3.3
+          },
+          {
+            "name": "dispatch_override",
+            "status": "rejected",
+            "seconds": 3.0
+          },
+          {
+            "name": "empty_maps",
+            "status": "rejected",
+            "seconds": 3.9
+          },
+          {
+            "name": "omitted_kv",
+            "status": "rejected",
+            "seconds": 3.1
+          },
+          {
+            "name": "omitted_conv",
+            "status": "rejected",
+            "seconds": 2.8
+          },
+          {
+            "name": "omitted_recurrent",
+            "status": "rejected",
+            "seconds": 3.4
+          },
+          {
+            "name": "source_write",
+            "status": "rejected",
+            "seconds": 3.2
+          },
+          {
+            "name": "stale_output",
+            "status": "rejected",
+            "seconds": 3.4
+          },
+          {
+            "name": "scratch_within_cap",
+            "status": "passed",
+            "median_us": 1872.794,
+            "scratch_peak_gib": [
+              1.652,
+              1.652,
+              1.5,
+              1.5
+            ],
+            "seconds": 16.1
+          },
+          {
+            "name": "scratch_over_cap",
+            "status": "rejected",
+            "seconds": 16.4,
+            "reason": "scratch cap exceeded"
+          },
+          {
+            "name": "scratch_child_process",
+            "status": "rejected",
+            "seconds": 19.9,
+            "reason": "scratch cap exceeded"
+          },
+          {
+            "name": "native_authority",
+            "status": "passed",
+            "median_us": 41928.457,
+            "scratch_peak_gib": [
+              0.152,
+              0.152,
+              0.0,
+              0.0
+            ],
+            "seconds": 16.3
+          },
+          {
+            "name": "native_checker_and_early_ack",
+            "status": "rejected"
+          },
+          {
+            "name": "early_ack_unsynchronised",
+            "status": "timed",
+            "median_us": 98837.851,
+            "sleep_us": 97738.11139166355
+          }
+        ],
+        "native_syscall_denials": {
+          "read_private": 13,
+          "write_reward": 13,
+          "parent_signal": 1,
+          "write_evaluator_code": 13,
+          "controller_mem": 13,
+          "controller_environ": 13,
+          "internet_socket": 1,
+          "unix_datagram": 1,
+          "unix_connect_abstract": 1,
+          "unix_connect_path": 1,
+          "process_vm_readv": 1,
+          "process_vm_writev": 1
+        },
+        "private_canaries_unchanged": true,
+        "worker_scores_used": false,
+        "hardware": [
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200"
+        ],
+        "scoring_hardware": true,
+        "wall_seconds": 124.2
+      },
+      "matched_pair": {
+        "cases": 192,
+        "reference_cases_passed": 192,
+        "candidate_cases_passed": 192,
+        "geometric_mean_speedup": 2.1206849109950694,
+        "wins": 192,
+        "tp_speedups": {
+          "1->1": 1.7052837057293322,
+          "1->2": 2.0407142520987467,
+          "2->1": 2.0909273140464792,
+          "2->2": 2.779628842925516
+        },
+        "layout_speedups": {
+          "contiguous": 2.124264345297604,
+          "fragmented": 2.118802890161401,
+          "fragmented_runs": 2.118992026589927
+        },
+        "reference_median_relative_iqr": 0.00824300945321367,
+        "candidate_median_relative_iqr": 0.005221208393580267,
+        "max_scratch_peak_gib": {
+          "reference": 1.094,
+          "candidate": 0.004
+        },
+        "suite_seconds": {
+          "reference": 415.2,
+          "candidate": 420.2
+        },
+        "summary": {
+          "protocol": "0.3.0",
+          "cases": 192,
+          "geometric_mean_speedup": 2.1206849109950694,
+          "scoring": true,
+          "hardware": [
+            "NVIDIA GB200",
+            "NVIDIA GB200",
+            "NVIDIA GB200",
+            "NVIDIA GB200"
+          ],
+          "reference": "Torch baseline in the same isolated worker path",
+          "isolation": {
+            "fallback": "none",
+            "landlock_abi": 4,
+            "landlock_scoped": 0,
+            "landlock_signal_scope": false,
+            "mode": "landlock"
+          },
+          "scratch_limit_bytes": 2147483648,
+          "max_scratch_peak_bytes": {
+            "reference": 1174405120,
+            "candidate": 4194304
+          },
+          "scope": "verified isolated transfer latency (publish + request + transfer + ack + capture)"
+        },
+        "sha256": {
+          "candidate.environment.json": "4e9e71d111ce3d4331dee8f463e895975709318606e5e7db17f74806718f165e",
+          "candidate.jsonl": "3755f4693c443baf7fa2d59e4eeba31c7c401e381a55a3af3c45860c95e9a38e",
+          "reference.environment.json": "7047c1b7ffc585de8ace982c02a014be6a77ae5a12285f09805ca81a66d661de",
+          "reference.jsonl": "f710beeb79e0f643319ceff1d65c7b5dec396be26aa159f4239a88bc449b3ed6",
+          "reward.json": "9dd2cd128f906d96cd2e95d342fe3532da693a0d93ca9d9983ba23a52e1fabcf",
+          "summary.json": "70d45ba0ad244272fceb2f08d17224ebcbe23d541cbd9011acde317237887e9e"
+        }
+      },
+      "evaluate_wall_seconds": 846,
+      "container_tooling_on_node": "no docker, podman, apptainer or sudo; enroot present; jobs run as the non-root cluster account, so root uid mode cannot be exercised there"
+    },
+    "b200_root_container_uid_mode": {
+      "host": "b200 (x86_64, 8x NVIDIA B200, Linux 6.17.0-1026-nvidia, Landlock ABI 7); GPUs 4-7 passed to the container",
+      "image": "docker build of task/environment/Dockerfile with the x86_64 torch 2.10.0+cu130 wheel substituted (no hash); image sha256:052511c3396f6148c39a0d1f035f15c5891c73b239c4e59763bbda9e31d350a0 (amd64)",
+      "run": "docker run --gpus device=4,5,6,7 --network none, as root, Harness rsi-isolate mounted read-only at /opt/rsi-isolate, /tests mounted read-only, saved candidate mounted read-only at /workspace/candidate.py; command: bash /tests/test.sh (KV_PREFLIGHT_ARGS=--allow-hardware, KV_ALLOW_HARDWARE=1)",
+      "isolation_mode": {
+        "fallback": "none",
+        "landlock_abi": 7,
+        "landlock_scoped": 3,
+        "landlock_signal_scope": true,
+        "mode": "uid"
+      },
+      "result": "test.sh EXIT=0, wall 1001 s (2026-11-06T18:19:47Z to 18:36:28Z); unit tests OK, preflight passed, evaluate 192/192 for both; summary marked scoring=false and no reward.json (non-GB200)",
+      "adversarial_preflight": {
+        "protocol": "0.3.0",
+        "status": "passed",
+        "cases": [
+          {
+            "name": "reference",
+            "status": "passed",
+            "median_us": 1639.378,
+            "scratch_peak_gib": [
+              0.16,
+              0.16,
+              0.0,
+              0.0
+            ],
+            "seconds": 3.6
+          },
+          {
+            "name": "dispatch_override",
+            "status": "rejected",
+            "seconds": 2.5
+          },
+          {
+            "name": "empty_maps",
+            "status": "rejected",
+            "seconds": 2.5
+          },
+          {
+            "name": "omitted_kv",
+            "status": "rejected",
+            "seconds": 2.6
+          },
+          {
+            "name": "omitted_conv",
+            "status": "rejected",
+            "seconds": 2.4
+          },
+          {
+            "name": "omitted_recurrent",
+            "status": "rejected",
+            "seconds": 2.4
+          },
+          {
+            "name": "source_write",
+            "status": "rejected",
+            "seconds": 2.4
+          },
+          {
+            "name": "stale_output",
+            "status": "rejected",
+            "seconds": 2.4
+          },
+          {
+            "name": "scratch_within_cap",
+            "status": "passed",
+            "median_us": 1668.416,
+            "scratch_peak_gib": [
+              1.66,
+              1.66,
+              1.5,
+              1.5
+            ],
+            "seconds": 11.1
+          },
+          {
+            "name": "scratch_over_cap",
+            "status": "rejected",
+            "seconds": 11.0,
+            "reason": "scratch cap exceeded"
+          },
+          {
+            "name": "scratch_child_process",
+            "status": "rejected",
+            "seconds": 12.8,
+            "reason": "scratch cap exceeded"
+          },
+          {
+            "name": "native_authority",
+            "status": "passed",
+            "median_us": 41792.207,
+            "scratch_peak_gib": [
+              0.16,
+              0.16,
+              0.0,
+              0.0
+            ],
+            "seconds": 11.1
+          },
+          {
+            "name": "native_checker_and_early_ack",
+            "status": "rejected"
+          },
+          {
+            "name": "early_ack_unsynchronised",
+            "status": "rejected"
+          }
+        ],
+        "native_syscall_denials": {
+          "read_private": 13,
+          "write_reward": 13,
+          "parent_signal": 1,
+          "write_evaluator_code": 13,
+          "controller_mem": 13,
+          "controller_environ": 13,
+          "internet_socket": 1,
+          "unix_datagram": 1,
+          "unix_connect_abstract": 1,
+          "unix_connect_path": 1,
+          "process_vm_readv": 1,
+          "process_vm_writev": 1
+        },
+        "private_canaries_unchanged": true,
+        "worker_scores_used": false,
+        "hardware": [
+          "NVIDIA B200",
+          "NVIDIA B200",
+          "NVIDIA B200",
+          "NVIDIA B200"
+        ],
+        "scoring_hardware": false,
+        "wall_seconds": 92.7
+      },
+      "matched_pair": {
+        "cases": 192,
+        "reference_cases_passed": 192,
+        "candidate_cases_passed": 192,
+        "geometric_mean_speedup": 2.0920416446111285,
+        "wins": 192,
+        "tp_speedups": {
+          "1->1": 1.7604319491147127,
+          "1->2": 1.9949054920290263,
+          "2->1": 1.9854813174626331,
+          "2->2": 2.7470965858895524
+        },
+        "layout_speedups": {
+          "contiguous": 2.0914584504360385,
+          "fragmented": 2.091318505356135,
+          "fragmented_runs": 2.093348592424562
+        },
+        "reference_median_relative_iqr": 0.006900776070753583,
+        "candidate_median_relative_iqr": 0.007588119574904862,
+        "max_scratch_peak_gib": {
+          "reference": 1.102,
+          "candidate": 0.004
+        },
+        "suite_seconds": {
+          "reference": 465.9,
+          "candidate": 426.5
+        },
+        "summary": {
+          "protocol": "0.3.0",
+          "cases": 192,
+          "geometric_mean_speedup": 2.0920416446111285,
+          "scoring": false,
+          "hardware": [
+            "NVIDIA B200",
+            "NVIDIA B200",
+            "NVIDIA B200",
+            "NVIDIA B200"
+          ],
+          "reference": "Torch baseline in the same isolated worker path",
+          "isolation": {
+            "fallback": "none",
+            "landlock_abi": 7,
+            "landlock_scoped": 3,
+            "landlock_signal_scope": true,
+            "mode": "uid"
+          },
+          "scratch_limit_bytes": 2147483648,
+          "max_scratch_peak_bytes": {
+            "reference": 1182793728,
+            "candidate": 4194304
+          },
+          "scope": "verified isolated transfer latency (publish + request + transfer + ack + capture)"
+        },
+        "sha256": {
+          "candidate.environment.json": "3f89d0fcc54dcfee86d7801d9559acbbae8577f7e67ab17f247dd4022a3f7860",
+          "candidate.jsonl": "9df6eb7a60d150e0cafe7eaf6e8f93c22d8872782de54c877dd7efba04bec8b2",
+          "reference.environment.json": "e6dc9cb19952c007636cfb113e10468a9d35548b4e534ec8d30d04b87169a3f3",
+          "reference.jsonl": "25bf39c33e39fb545edd4b036cb37fbaef686e013fd21749a16b18d5c214c3da",
+          "summary.json": "1d3509ee14d66fa44cd0c77237d06f07ee8c6da35a10d615496a00533c8d2458"
+        }
+      },
+      "defects_found_and_fixed": [
+        "NumPy missing from the image (VMM buffers are wrapped through __cuda_array_interface__)",
+        "python3-dev missing: no Python.h, so no candidate C++/CUDA extension could build",
+        "preflight hostile fixtures written under /logs/verifier, which rsi-isolate never grants",
+        "test_guard.py PYTHONPATH pointed at the repository layout, absent in the image"
+      ]
+    },
+    "not_covered": [
+      "arm64 image build and a run in a container on the GB200 site (no container runtime with root there)",
+      "an RSI-Harness-launched Judge (the Harness rsi-isolate library was used directly)",
+      "allocations made and freed within one 5 ms poll interval are not observed by the scratch monitor",
+      "run-to-run drift: the same saved candidate measured 2.24x (earlier run) and 2.12x (this run) on the same node; the reference was about 6% faster this run"
+    ]
+  }
 }

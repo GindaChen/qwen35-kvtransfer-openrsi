@@ -1,8 +1,9 @@
-# Preparation recipe: not yet built/validated by RSI-Harness. GB200 host is Linux arm64.
+# Preparation recipe. Built and run as root (rsi-isolate uid mode) on an x86_64 B200 host with the x86_64 torch wheel
+# (2026-11-06); not yet built by RSI-Harness or on the arm64 GB200 site. python3-dev: Python.h for candidate extensions.
 # The Judge additionally requires the Harness rsi-isolate mount at /opt/rsi-isolate.
 FROM nvidia/cuda:13.0.0-devel-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip python3-venv build-essential ninja-build git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-pip python3-venv build-essential ninja-build git ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 COPY requirements.txt /opt/requirements.txt

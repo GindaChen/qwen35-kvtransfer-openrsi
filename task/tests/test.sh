@@ -7,7 +7,8 @@ python /tests/test_checker.py
 python /tests/test_results.py
 python /tests/test_wire.py
 python /tests/test_guard.py
+python /tests/test_gpumem.py
 # Adversarial preflight on this site: hostile candidates must be contained by
 # the actual rsi-isolate + worker guard boundary before anything is scored.
-PYTHONPATH=/opt/kv-transfer python /tests/validate_isolation.py --output /logs/verifier/isolation-preflight
+PYTHONPATH=/opt/kv-transfer python /tests/validate_isolation.py --output /logs/verifier/isolation-preflight ${KV_PREFLIGHT_ARGS:-}
 exec python /tests/evaluate.py

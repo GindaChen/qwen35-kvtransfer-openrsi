@@ -10,7 +10,7 @@ from evaluate import load
 
 def rows():
     return [dict(p=p,d=d,bs=bs,ctx=ctx,layout=layout,correct=True,
-                 median_us=2.0,samples_us=[2.0]*50)
+                 median_us=2.0,samples_us=[2.0]*50,scratch_peak_bytes=[0,1024,0,0])
         for (p,d),bs,ctx,layout in itertools.product(
             [(1,1),(1,2),(2,1),(2,2)],[1,4],
             [4096,8192,32768,65536,4097,10034,32749,65521],
@@ -42,7 +42,7 @@ class Results(unittest.TestCase):
                     evaluate.main()
             self.assertFalse((log/'reward.json').exists())
     def test_invalid(self):
-        for change in ['duplicate','missing','truthy','median','nan','negative','count']:
+        for change in ['duplicate','missing','truthy','median','nan','negative','count','scratch_over','scratch_missing','scratch_float']:
             with self.subTest(change=change):
                 data=rows()
                 if change=='duplicate': data[-1]=data[0].copy()
@@ -52,6 +52,9 @@ class Results(unittest.TestCase):
                 if change=='nan': data[0]['samples_us'][0]=float('nan')
                 if change=='negative': data[0]['samples_us'][0]=-1
                 if change=='count': data[0]['samples_us'].pop()
+                if change=='scratch_over': data[0]['scratch_peak_bytes'][1]=2*1024**3+1
+                if change=='scratch_missing': del data[0]['scratch_peak_bytes']
+                if change=='scratch_float': data[0]['scratch_peak_bytes'][0]=0.0
                 with self.assertRaises(RuntimeError): self.read(data)
 
 if __name__=='__main__': unittest.main()

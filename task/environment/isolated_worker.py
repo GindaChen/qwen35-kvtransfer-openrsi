@@ -25,6 +25,16 @@ def main():
     import benchmark as b
     from isolation.vmm import decode_maps, import_allocations
     # The source policy is a development contract, not the authority boundary.
+    # Scratch-cap baseline: a CUDA context on every device before any candidate
+    # code exists in this process; the controller's trusted monitor records
+    # this process tree's GPU memory now (isolation/gpumem.py).
+    for i in range(torch.cuda.device_count()):
+        torch.empty(1, device=torch.device('cuda', i))
+    b.sync()
+    send(channel, {'kind': 'context', 'protocol': PROTOCOL})
+    message, fds = receive(channel)
+    if message != {'kind': 'load'} or fds:
+        raise ValueError('Expected load command')
     fn = b.load_candidate(args.candidate)
     profile = os.environ.get('KV_WORKER_PROFILE') == '1'
     send(channel, {'kind': 'ready', 'protocol': PROTOCOL})

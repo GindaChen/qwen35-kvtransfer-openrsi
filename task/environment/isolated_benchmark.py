@@ -47,13 +47,13 @@ from pathlib import Path
 
 import torch
 import benchmark as b
+from isolation.gpumem import SCRATCH_LIMIT, Monitor, device_uuids
 from isolation.guard import protect_parent
 from isolation.vmm import allocate_plan, describe_allocations, encode_maps
 from isolation.wire import receive, send
 
 PROTOCOL_VERSION = '0.3.0'
 ROOT = Path(__file__).resolve().parent
-SCRATCH_LIMIT = 2 * 1024 ** 3
 TRANSFER_TIMEOUT = 600  # seconds per invocation; a timeout is an unscored failure
 PROFILE = os.environ.get('KV_WORKER_PROFILE') == '1'
 
@@ -61,11 +61,12 @@ PROFILE = os.environ.get('KV_WORKER_PROFILE') == '1'
 class Worker:
     """One isolated worker process serving every case of one suite."""
 
-    def __init__(self, candidate, log_path, isolator=None, timeout=1800):
+    def __init__(self, candidate, log_path, isolator=None, timeout=1800, scratch_limit=SCRATCH_LIMIT):
         protect_parent()
         self.socket, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         self.socket.settimeout(timeout)
         self.process = None
+        self.monitor = None
         self.log = open(log_path, 'xb')
         candidate = Path(candidate).resolve(strict=True)
         command = [sys.executable, '-I', str(ROOT / 'gpu_isolate.py'), '--controller-pid', str(os.getpid())]
@@ -107,10 +108,25 @@ class Worker:
         env.pop('RSI_JUDGE_ALLOW_MISSING_LANDLOCK_SIGNAL', None)
         env.pop('KV_MAP_SEED', None)
         try:
+            # Scratch cap (isolation/gpumem.py): the controller's own contexts
+            # exist on every device first, so every PID that appears on these
+            # GPUs afterwards is the worker's process tree.
+            for i in range(torch.cuda.device_count()):
+                torch.empty(1, device=torch.device('cuda', i))
+            b.sync()
+            self.monitor = Monitor(device_uuids(torch), limit=scratch_limit)
+            self.monitor.exclude_present()
             self.process = subprocess.Popen(command, env=env, pass_fds=(child.fileno(),),
                                             stdin=subprocess.DEVNULL,
                                             stdout=self.log, stderr=subprocess.STDOUT)
             child.close()
+            message, _ = receive(self.socket)
+            if message != {'kind': 'context', 'protocol': PROTOCOL_VERSION}:
+                raise RuntimeError('Invalid worker context message')
+            # Trusted code only so far: CUDA contexts on every device, candidate
+            # not imported. This is the worker's zero-scratch baseline.
+            self.context_bytes = self.monitor.set_context()['context']
+            send(self.socket, {'kind': 'load'})
             message, _ = receive(self.socket)
             if message != {'kind': 'ready', 'protocol': PROTOCOL_VERSION}:
                 raise RuntimeError('Invalid worker readiness message')
@@ -147,6 +163,10 @@ class Worker:
         send(self.socket, {'kind': 'release', 'nonce': nonce})
         self._expect('released', nonce)
 
+    def check_scratch(self, label):
+        """Untimed, end of case: unscored (ScratchError) above the cap."""
+        return self.monitor.check(label)
+
     def pid(self):
         return None if self.process is None else self.process.pid
 
@@ -160,6 +180,9 @@ class Worker:
                     self.process.kill()  # rsi-isolate kills all descendants on exit
                     self.process.wait()
             self.process = None
+        if self.monitor is not None:
+            self.monitor.close()
+            self.monitor = None
         self.socket.close()
         self.log.close()
 
@@ -284,6 +307,9 @@ def run_case(worker, p, d, bs, ctx, layout, warmup, samples, seed):
             if generation >= 2 + warmup:
                 times.append(elapsed)
             del staged, captured
+        # Peak worker-tree GPU memory above its pre-candidate context, polled
+        # throughout the case plus one synchronous sample now (untimed).
+        scratch = worker.check_scratch(f'{p}/{d}/{bs}/{ctx}/{layout}')
     finally:
         try:
             if worker.process is not None and worker.process.poll() is None:
@@ -294,6 +320,7 @@ def run_case(worker, p, d, bs, ctx, layout, warmup, samples, seed):
                 allocation.close()
     return dict(p=p, d=d, bs=bs, ctx=ctx, layout=layout, correct=True,
                 median_us=statistics.median(times), samples_us=times,
+                scratch_peak_bytes=scratch,
                 useful_bytes=bs * (ctx * 20480 + 64471040),
                 page_payload_bytes=bs * (math.ceil(ctx / b.BLOCK) * b.BLOCK * 20480 + 64471040))
 

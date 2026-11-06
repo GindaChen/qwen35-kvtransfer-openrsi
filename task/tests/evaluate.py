@@ -25,6 +25,10 @@ LOG = Path(os.environ.get('KV_LOG_DIR', '/logs/verifier'))
 TASK = Path(os.environ.get('KV_TASK_ROOT', '/opt/kv-transfer'))
 CANDIDATE = Path(os.environ.get('KV_CANDIDATE', '/workspace/candidate.py'))
 ISOLATOR = os.environ.get('KV_ISOLATOR')  # None: the Harness mount /opt/rsi-isolate
+# Development only (non-GB200 hosts): run the whole path, write a summary marked
+# non-scoring and never write reward.json.
+DEV_HARDWARE = os.environ.get('KV_ALLOW_HARDWARE') == '1'
+SCRATCH_LIMIT = 2 * 1024 ** 3
 PROTOCOL = '0.3.0'
 CASES = {
     (p, d, bs, ctx, l)
@@ -50,6 +54,9 @@ def load(path):
             and all(type(t) in (int, float) and math.isfinite(t) and t > 0
                     for t in r["samples_us"])
             and r["median_us"] == statistics.median(r["samples_us"])
+            and type(r.get("scratch_peak_bytes")) is list
+            and len(r["scratch_peak_bytes"]) == 4
+            and all(type(v) is int and v <= SCRATCH_LIMIT for v in r["scratch_peak_bytes"])
             for r in rows
         )
     ):
@@ -80,6 +87,8 @@ def run_suite(label, candidate, seed):
         cmd += ['--candidate', str(candidate)]
     if ISOLATOR:
         cmd += ['--isolator', ISOLATOR]
+    if DEV_HARDWARE:
+        cmd += ['--allow-hardware']
     # The seed travels in the controller's environment, never on a command line
     # (/proc/<pid>/cmdline is world-readable; environ is not).
     env = dict(os.environ, PYTHONPATH=str(TASK), KV_MAP_SEED=str(seed))
@@ -87,9 +96,9 @@ def run_suite(label, candidate, seed):
         subprocess.run(cmd, env=env, cwd=str(TASK), stdout=stream,
                        stderr=subprocess.STDOUT, check=True, timeout=5400)
     meta = json.loads(output.with_suffix('.environment.json').read_text())
-    if meta.get('protocol_version') != PROTOCOL or meta.get('scoring_hardware') is not True:
+    if meta.get('protocol_version') != PROTOCOL or (meta.get('scoring_hardware') is not True and not DEV_HARDWARE):
         raise RuntimeError('Result was not produced by the protocol-0.3 controller on GB200')
-    return load(output)
+    return load(output), meta
 
 
 def protect_self():
@@ -108,19 +117,28 @@ def main():
         if not CANDIDATE.is_file():
             raise RuntimeError('Missing candidate')
         map_seed = secrets.randbits(63)  # identical map sequence for both implementations
-        b = run_suite('reference', None, map_seed)
-        c = run_suite('candidate', CANDIDATE, map_seed)
+        b, b_meta = run_suite('reference', None, map_seed)
+        c, c_meta = run_suite('candidate', CANDIDATE, map_seed)
         ratios = {k: b[k]["median_us"] / c[k]["median_us"] for k in b}
         reward = math.exp(statistics.mean(math.log(v) for v in ratios.values()))
+        scoring = b_meta.get('scoring_hardware') is True and c_meta.get('scoring_hardware') is True
         (LOG / "summary.json").write_text(json.dumps({
             "protocol": PROTOCOL,
             "cases": 192,
             "geometric_mean_speedup": reward,
+            "scoring": scoring,
+            "hardware": c_meta.get('hardware'),
             "reference": "Torch baseline in the same isolated worker path",
             "isolation": mode,
+            "scratch_limit_bytes": SCRATCH_LIMIT,
+            "max_scratch_peak_bytes": {
+                "reference": max(max(r["scratch_peak_bytes"]) for r in b.values()),
+                "candidate": max(max(r["scratch_peak_bytes"]) for r in c.values()),
+            },
             "scope": "verified isolated transfer latency (publish + request + transfer + ack + capture)",
         }, indent=2))
-        (LOG / "reward.json").write_text(json.dumps({"reward": reward}))
+        if scoring:
+            (LOG / "reward.json").write_text(json.dumps({"reward": reward}))
     except Exception as exc:
         (LOG / "failure.json").write_text(json.dumps({"status": "unscored", "error": str(exc)}))
         raise

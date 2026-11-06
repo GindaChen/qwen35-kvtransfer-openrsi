@@ -35,6 +35,7 @@ clock, score, file or Python object is consumed (never pickle).
 | Acknowledge before GPU work completes | timed controller capture after the ack | `early_ack_unsynchronised`: 98.8 ms timed ≥ 97.7 ms queued sleep |
 | Start work before the clock (pre-staging) | fresh payload is written into the source buffers only after the clock starts (timed publish) | structural; stale bytes are useless |
 | Escape cleanup (double fork, new session) | rsi-isolate is the child subreaper and kills every descendant | n/a |
+| Exceed the 2 GiB/GPU scratch cap with native allocations or a child process | trusted NVML monitor process (below) | `scratch_over_cap` (2.25 GiB native) and `scratch_child_process` (2.5 GiB in a child): rejected; `scratch_within_cap` (1.5 GiB native): passed |
 
 ## Two driver-compatibility rules (`gpu_isolate.py`)
 
@@ -56,6 +57,66 @@ No unconfined fallback exists: `gpu_isolate.py` refuses
 `RSI_JUDGE_ISOLATION_FALLBACK` other than `none`, and `evaluate.py` refuses to
 score unless `rsi-isolate isolation` reports `landlock`, `uid` or `userns`.
 
+## Scratch cap: 2 GiB per GPU, enforced (`isolation/gpumem.py`)
+
+The candidate may allocate at most 2 GiB per GPU beyond the fixed
+source/destination pools. Native code (`cudaMalloc`, `cuMemCreate`, child
+processes) bypasses any in-process allocator limit, so the cap is enforced
+from outside the worker:
+
+1. Before the worker starts, the controller creates its own CUDA context on
+   all four GPUs and starts a trusted **monitor process** (non-dumpable, never
+   shares memory with the worker). The monitor reads the driver's per-process
+   GPU memory through NVML (`nvmlDeviceGetComputeRunningProcesses`) and records
+   every PID already on the GPUs (the controller, anything pre-existing) as
+   excluded. Every PID that appears later is the worker's process tree
+   (rsi-isolate ends all descendants with the worker). PIDs are compared in
+   NVML's own namespace, so this works in a container without host PIDs.
+2. The worker creates a CUDA context on every device **before** importing the
+   candidate and says `context`; the monitor records that usage as the
+   worker's baseline (trusted code only). Only then does the controller send
+   `load`.
+3. Scratch on a device = worker-tree usage − baseline. The pools are created
+   by the controller and only imported by the worker, so NVML charges them to
+   the controller (measured: largest case, pools ≈ 5.6 GB per side, worker
+   scratch 1.1 GiB for the Torch reference).
+4. The monitor polls every 5 ms (`KV_SCRATCH_POLL_MS`) through every case and
+   takes one synchronous sample at the end of the case. A peak above 2 GiB on
+   any GPU raises `ScratchError`: the suite is unscored. Every result row
+   carries `scratch_peak_bytes`, and `evaluate.py` re-checks them.
+
+Limits, stated plainly: an allocation made and freed within one poll interval
+(< ~5 ms) is not observed; lazily loaded kernels, library workspaces and the
+caching allocator's reserve after the baseline count as scratch (the Torch
+reference peaks at about 1.1 GiB on the largest cases); if NVML cannot report
+per-process usage the monitor fails closed (unscored).
+
+Preflight cases: `scratch_within_cap` (native `cuMemAlloc` of 1.5 GiB per GPU,
+kept for the run) must pass; `scratch_over_cap` (2.25 GiB per GPU, native) and
+`scratch_child_process` (a child process the candidate starts holds 2.5 GiB)
+must be rejected with "scratch cap exceeded".
+
+## Root (`uid`) mode in the task image
+
+The Harness runs the Judge as root in the task container; `rsi-isolate` then
+runs the worker as its own unprivileged uid (62000+) and also applies
+Landlock where the kernel has it. The image was built from
+`task/environment/Dockerfile` and `/tests/test.sh` was run in it as root, with
+the Harness `rsi-isolate` mounted read-only at `/opt/rsi-isolate`,
+`--network none` and four GPUs. This found and fixed three defects that would
+have failed every official run: NumPy was missing from the image (the VMM
+buffers are wrapped through `__cuda_array_interface__`), `python3-dev` was
+missing (no `Python.h`, so no candidate could build a C++/CUDA extension), and
+the preflight wrote its hostile candidates under `/logs/verifier`, which
+`rsi-isolate` never grants. The only host available with Docker and root in a
+container is an x86_64 B200 node: the GB200 node has no Docker, Podman,
+Apptainer or sudo and runs jobs as a non-root cluster account (probed
+2026-11-06; only Enroot is installed, which was not tried), so the image used
+the x86_64 torch wheel and the results are marked non-scoring. Result:
+`test.sh` exit 0 as root, mode `uid` (Landlock ABI 7 also applied), preflight
+passed in 93 s, 192/192 for both implementations. See the evidence file for
+what ran where.
+
 ## Timing boundary (changed from 0.2; numbers are not comparable)
 
 Outside timing: per-case buffer allocation/publication, per-invocation maps,
@@ -76,4 +137,7 @@ especially for small cases. This is the price of a trustworthy clock.
 ## Evidence
 
 See `protocol03-validation-summary.json` (repository root) for the GB200
-adversarial preflight, the full matched 192-case pair and hashes.
+adversarial preflight, the full matched 192-case pair and hashes, and its
+`followup_20261106` section for the scratch-cap run on GB200 (preflight 124 s
+wall, 192/192 for both, 2.12x, peak scratch reference 1.09 GiB / candidate
+4 MiB) and the root `uid`-mode run of the task image.

@@ -21,12 +21,21 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',required=True)
     parser.add_argument('--isolator')
+    parser.add_argument('--allow-hardware',action='store_true',
+                        help='Development only: run on non-GB200 GPUs; the report says so')
     args=parser.parse_args()
-    if torch.cuda.device_count()!=4 or not all('GB200' in torch.cuda.get_device_name(i) for i in range(4)):
+    began=time.perf_counter()
+    names=[torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+    if len(names)!=4 or not (args.allow_hardware or all('GB200' in n for n in names)):
         raise RuntimeError('Run isolation integration tests only on four delegated GB200 GPUs')
     root=Path(args.output).resolve()
     root.mkdir(parents=True,exist_ok=False)
-    fixtures=root/'candidates';fixtures.mkdir()
+    # Hostile candidate sources must be readable by the isolated worker, and
+    # rsi-isolate never grants anything under /logs/verifier (where `root`
+    # lives on the Judge), so they go in a separate world-readable directory.
+    # They hold no secret; the private canaries below stay under `root`.
+    import tempfile
+    fixtures=Path(tempfile.mkdtemp(prefix='kv-preflight-candidates-'));fixtures.chmod(0o755)
     private=root/'private';private.mkdir()
     secret=private/'canary.txt';secret.write_text('unchanged-private-canary')
     forged=private/'reward.json'
@@ -44,6 +53,7 @@ def main():
     reports=[]
 
     def run(name,source,valid,**extra):
+        t0=time.perf_counter()
         path=fixtures/(name+'.py');path.write_text(source)
         # Attack sources must really pass the current policy; a policy rejection
         # is not evidence that native code is contained by the OS boundary.
@@ -52,12 +62,19 @@ def main():
         try:
             if valid:
                 row=run_case(worker,1,1,1,129,'fragmented',0,1,12345)
-                reports.append(dict(name=name,status='passed',median_us=row['median_us']))
+                reports.append(dict(name=name,status='passed',median_us=row['median_us'],
+                                    scratch_peak_gib=[round(v/2**30,3) for v in row['scratch_peak_bytes']],
+                                    seconds=round(time.perf_counter()-t0,1)))
                 return worker,row
             try:
                 run_case(worker,1,1,1,129,'fragmented',0,1,12345)
-            except (AssertionError,RuntimeError):
-                reports.append(dict(name=name,status='rejected'))
+            except (AssertionError,RuntimeError) as exc:
+                entry=dict(name=name,status='rejected',seconds=round(time.perf_counter()-t0,1))
+                if extra.get('expect'):
+                    if extra['expect'] not in str(exc):
+                        raise AssertionError(f'{name} rejected for the wrong reason: {exc}')
+                    entry['reason']=extra['expect']
+                reports.append(entry)
             else:raise AssertionError('Invalid candidate accepted: '+name)
         except BaseException:
             worker.close()
@@ -83,6 +100,50 @@ def transfer(plan):
         run('omitted_'+family,source,False)
     run('source_write',reference+"def transfer(plan):\n reference(plan)\n plan['src'][0]['conv'].zero_()\n",False)
     run('stale_output',reference+"calls=0\ndef transfer(plan):\n global calls\n calls+=1\n if calls==1: reference(plan)\n",False)
+
+    # Scratch cap (2 GiB/GPU beyond the fixed pools), enforced by the trusted
+    # NVML monitor against native allocations the Python policy never sees.
+    def native_alloc(name,gib):
+        code=f'''
+import builtins,ctypes,torch
+cuda=ctypes.CDLL('libcuda.so.1')
+keep=[]
+for dev in range(torch.cuda.device_count()):
+ torch.cuda.set_device(dev);torch.empty(1,device=dev)
+ ptr=ctypes.c_uint64()
+ size=ctypes.c_size_t(int({gib}*2**30))
+ if cuda.cuMemAlloc_v2(ctypes.byref(ptr),size):raise RuntimeError('cuMemAlloc failed')
+ if cuda.cuMemsetD8_v2(ptr,ctypes.c_ubyte(1),size):raise RuntimeError('cuMemsetD8 failed')
+ keep.append(ptr.value)
+torch.cuda.set_device(0)
+builtins.kv_scratch_probe=keep
+'''
+        cpp='#include <torch/extension.h>\nPYBIND11_MODULE(TORCH_EXTENSION_NAME,m) {\n PyRun_SimpleStringFlags('+json.dumps(code)+',nullptr);\n}\n'
+        src=reference+'from torch.utils.cpp_extension import load_inline\n'
+        src+=f'_native=load_inline(name="kv_scratch_{name}",cpp_sources='+repr(cpp)+',with_cuda=False,extra_cflags=["-O0"],verbose=False)\n'
+        return src+'transfer=reference\n'
+    run('scratch_within_cap',native_alloc('within',1.5),True)[0].close()
+    run('scratch_over_cap',native_alloc('over',2.25),False,expect='scratch cap exceeded')
+    # A child process the candidate starts is part of the worker tree.
+    child='''
+import os,sys,time,torch
+x=torch.empty(int(2.5*2**30),dtype=torch.uint8,device='cuda:1');x.fill_(1);torch.cuda.synchronize(1)
+open(sys.argv[1],'w').write('ready')
+time.sleep(3600)
+'''
+    code=f'''
+import builtins,os,subprocess,sys,tempfile,time
+flag=os.path.join(tempfile.mkdtemp(),'ready')
+builtins.kv_scratch_child=subprocess.Popen([sys.executable,'-c',{child!r},flag])
+end=time.time()+300
+while not os.path.exists(flag):
+ if time.time()>end or builtins.kv_scratch_child.poll() is not None:raise RuntimeError('child allocation failed')
+ time.sleep(0.2)
+'''
+    cpp='#include <torch/extension.h>\nPYBIND11_MODULE(TORCH_EXTENSION_NAME,m) {\n PyRun_SimpleStringFlags('+json.dumps(code)+',nullptr);\n}\n'
+    src=reference+'from torch.utils.cpp_extension import load_inline\n'
+    src+='_native=load_inline(name="kv_scratch_child",cpp_sources='+repr(cpp)+',with_cuda=False,extra_cflags=["-O0"],verbose=False)\n'
+    run('scratch_child_process',src+'transfer=reference\n',False,expect='scratch cap exceeded')
 
     # Execute host Python through a permitted native extension, deliberately
     # bypassing Python AST restrictions. This must not alter Judge authority.
@@ -185,7 +246,9 @@ torch.cuda.kv_probe_sleep=torch.cuda._sleep
     if secret.read_text()!='unchanged-private-canary' or forged.exists() or memory.value!=0x3141592653589793:
         raise AssertionError('Private evaluator authority changed')
     result=dict(protocol='0.3.0',status='passed',cases=reports,native_syscall_denials=report,
-                private_canaries_unchanged=True,worker_scores_used=False)
+                private_canaries_unchanged=True,worker_scores_used=False,hardware=names,
+                scoring_hardware=all('GB200' in n for n in names),
+                wall_seconds=round(time.perf_counter()-began,1))
     (root/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result),flush=True)
 
