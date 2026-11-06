@@ -1,0 +1,200 @@
+{
+  "date": "2026-11-06",
+  "protocol": "0.3.0",
+  "hardware": "one node, 4x NVIDIA GB200 (Linux 6.8, Landlock ABI 4), torch 2.10.0+cu130",
+  "code": "this branch; per-file sha256 of the code that ran matches the committed files",
+  "candidate_sha256": "789254fcae047af186ea70a8077a807daab734b50d954050ef9399b0781aa32f",
+  "adversarial_preflight": {
+    "protocol": "0.3.0",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "reference",
+        "status": "passed",
+        "median_us": 2145.433
+      },
+      {
+        "name": "dispatch_override",
+        "status": "rejected"
+      },
+      {
+        "name": "empty_maps",
+        "status": "rejected"
+      },
+      {
+        "name": "omitted_kv",
+        "status": "rejected"
+      },
+      {
+        "name": "omitted_conv",
+        "status": "rejected"
+      },
+      {
+        "name": "omitted_recurrent",
+        "status": "rejected"
+      },
+      {
+        "name": "source_write",
+        "status": "rejected"
+      },
+      {
+        "name": "stale_output",
+        "status": "rejected"
+      },
+      {
+        "name": "native_authority",
+        "status": "passed",
+        "median_us": 42031.846
+      },
+      {
+        "name": "native_checker_and_early_ack",
+        "status": "rejected"
+      },
+      {
+        "name": "early_ack_unsynchronised",
+        "status": "timed",
+        "median_us": 98886.977,
+        "sleep_us": 97773.34704995155
+      }
+    ],
+    "native_syscall_denials": {
+      "read_private": 13,
+      "write_reward": 13,
+      "parent_signal": 1,
+      "write_evaluator_code": 13,
+      "controller_mem": 13,
+      "controller_environ": 13,
+      "internet_socket": 1,
+      "unix_datagram": 1,
+      "unix_connect_abstract": 1,
+      "unix_connect_path": 1,
+      "process_vm_readv": 1,
+      "process_vm_writev": 1
+    },
+    "private_canaries_unchanged": true,
+    "worker_scores_used": false
+  },
+  "unit_tests": {
+    "test_plan_integrity": 7,
+    "test_layouts": 5,
+    "test_candidate_policy": 1,
+    "test_checker": 5,
+    "test_results": 4,
+    "test_wire": 6,
+    "test_guard": 1,
+    "status": "all OK"
+  },
+  "boundary_audit": {
+    "in_process_dev_runner": "breached (exit 1, expected)",
+    "isolated_controller": "contained (exit 0)"
+  },
+  "matched_pair": {
+    "cases": 192,
+    "reference_cases_passed": 192,
+    "candidate_cases_passed": 192,
+    "geometric_mean_speedup": 2.2395569275658653,
+    "wins": 192,
+    "tp_speedups": {
+      "1->1": 1.7605112192231354,
+      "1->2": 2.1894054167677703,
+      "2->1": 2.2237971993472314,
+      "2->2": 2.9348658916196304
+    },
+    "layout_speedups": {
+      "contiguous": 2.2436957527943306,
+      "fragmented": 2.236265380730266,
+      "fragmented_runs": 2.2387160479749135
+    },
+    "batch_context_speedups": {
+      "bs1/ctx4096": 3.7638849495115307,
+      "bs1/ctx4097": 3.4838896959714982,
+      "bs1/ctx8192": 3.1594290972251797,
+      "bs1/ctx10034": 2.9001478429541994,
+      "bs1/ctx32749": 2.0293080009207465,
+      "bs1/ctx32768": 2.0309080380125972,
+      "bs1/ctx65521": 1.9262255685306522,
+      "bs1/ctx65536": 1.908185249669065,
+      "bs4/ctx4096": 2.2779552696177916,
+      "bs4/ctx4097": 2.194925887328946,
+      "bs4/ctx8192": 1.9212533618147374,
+      "bs4/ctx10034": 1.8976536905736818,
+      "bs4/ctx32749": 1.8742982928563225,
+      "bs4/ctx32768": 1.8676271876843455,
+      "bs4/ctx65521": 1.8580020061506612,
+      "bs4/ctx65536": 1.85590858761673
+    },
+    "reference_median_relative_iqr": 0.008851949411868749,
+    "candidate_median_relative_iqr": 0.005028705151693599,
+    "summary": {
+      "protocol": "0.3.0",
+      "cases": 192,
+      "geometric_mean_speedup": 2.2395569275658653,
+      "reference": "Torch baseline in the same isolated worker path",
+      "isolation": {
+        "fallback": "none",
+        "landlock_abi": 4,
+        "landlock_scoped": 0,
+        "landlock_signal_scope": false,
+        "mode": "landlock"
+      },
+      "scope": "verified isolated transfer latency (publish + request + transfer + ack + capture)"
+    },
+    "environment": {
+      "reference": {
+        "protocol_version": "0.3.0",
+        "metric": "verified_transfer_latency_us",
+        "timing": "fresh selected-source publish + request + transfer + ack + private selected-destination capture",
+        "hardware": [
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200"
+        ],
+        "scoring_hardware": true,
+        "torch": "2.10.0+cu130",
+        "cuda": "13.0",
+        "mode": "torch-reference",
+        "seed_mode": "provided",
+        "started_at": 1793956804.1688945
+      },
+      "candidate": {
+        "protocol_version": "0.3.0",
+        "metric": "verified_transfer_latency_us",
+        "timing": "fresh selected-source publish + request + transfer + ack + private selected-destination capture",
+        "hardware": [
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200",
+          "NVIDIA GB200"
+        ],
+        "scoring_hardware": true,
+        "torch": "2.10.0+cu130",
+        "cuda": "13.0",
+        "mode": "candidate",
+        "seed_mode": "provided",
+        "started_at": 1793957250.3676846
+      }
+    },
+    "sha256": {
+      "candidate.environment.json": "91534e1d493132c60f74e1d36005e6701c26e51ebe893f912577eceb37cba5da",
+      "candidate.jsonl": "f9568cb866424491354647d2041a57ea6b6973fa6a1347ad4242274f570a37a2",
+      "reference.environment.json": "18fb67adbe1e69c644de8c5067b4229493120e62a51f67cf645260a16e2b158d",
+      "reference.jsonl": "143bbe5cc528de266e604a353d614edee8e9d9edb308f7ac4905d38c3ce7ae48",
+      "reward.json": "2f3522998420eaa2d52e430f63d13c2227ce539003c0c96814d2be3c154bad7b",
+      "summary.json": "2300224fd1a74d62d2ee6f9cda9bb9cdff3f99b53295cb60b04c8ccb2b38750a"
+    }
+  },
+  "wall_time_s": {
+    "matched_pair": "09:20:02 to 09:34:47 UTC (885 s; reference 442 s, candidate 442 s)"
+  },
+  "supporting_run_eval01": {
+    "geometric_mean_speedup": 2.19,
+    "wins": 192,
+    "note": "earlier run of the same design before seed hardening"
+  },
+  "remaining_gaps": [
+    "2 GiB/GPU scratch cap is a contract, not enforced",
+    "root uid mode / container image not exercised",
+    "no official Harness/Judge execution claimed"
+  ]
+}

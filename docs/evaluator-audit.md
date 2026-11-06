@@ -1,4 +1,6 @@
-# Evaluator integrity audit (2026-11-03)
+# Evaluator integrity audit (2026-11-03; resolution 2026-11-06)
+
+> **Status 2026-11-06:** the boundary failures below are resolved for scoring by protocol 0.3 (trusted controller, candidate in an `rsi-isolate` worker). See [Protocol 0.3 resolution](#protocol-03-resolution-2026-11-06) at the end and [protocol03/README.md](protocol03/README.md). The in-process runner described below still exists for development only and is never scored; `python tools/audit_boundary.py --in-process` still exits 1 by design.
 
 This audit separates functional checking from containment of an adversarial native candidate. Passing the former does not establish the latter. No official Harness acceptance or execution is claimed.
 
@@ -48,3 +50,21 @@ Both the reference and unchanged saved candidate passed all 192 cases on four GB
 The earlier 3.8063x result and learning curves remain the historical 128-case protocol-0.1 pilot. No new research learning curve or official Harness trajectory has been generated. Raw native transcripts and operator logs remain withheld for privacy review.
 
 The GB200 follow-up also passed all three result-parser/fail-closed tests. A read-only target capability probe found no Docker, Apptainer, RSI-Harness executable or Docker socket; a supported operator site profile has not been established. No extra allocation or unsupported Ray Harness backend was introduced.
+
+## Protocol 0.3 resolution (2026-11-06)
+
+Each remaining failure above, and its status under the scored protocol-0.3 path:
+
+| 2026-11-03 failure | Protocol 0.3 | Evidence on 4×GB200 |
+| --- | --- | --- |
+| `torch.library` dispatch override makes `bit_equal` accept unequal tensors | the checker runs in the controller, which never imports candidate code | `dispatch_override` rejected; `tools/audit_boundary.py` (isolated) exits 0 |
+| `load_candidate` executes native code beside checker/timer/result writer | `load_candidate` runs only in the isolated worker; clock, payload, snapshots, checks and rows are controller-owned | native `PyRun_SimpleString` monkeypatch of checker/sync/timer had no effect: forced 40 ms wait measured, no-transfer call rejected |
+| Native file access can forge result rows / overwrite the reference file | Landlock: worker writes only its private HOME/TMPDIR; `/logs/verifier` is never granted; rows written by controllers | write to private reward path and to `benchmark.py`: EACCES |
+| Native code can reach Judge memory | controller and Judge are non-dumpable; worker seccomp denies ptrace/process_vm_*; Landlock ptrace scope | `/proc/<controller>/mem`, `environ`: EACCES; `process_vm_readv/writev`: EPERM |
+| `PyRun_SimpleStringFlags` and POSIX `open/write` in native sources pass the policy | irrelevant to scoring: executed inside the worker by the probe above | contained |
+| Harness `rsi-isolate` not invoked | invoked for every candidate and reference worker through `gpu_isolate.py` (two measured CUDA compatibility rules) | Landlock mode, no fallback |
+| Early acknowledgement / work before the clock | timed fresh-payload publish before the request and timed private capture after the ack | queued 97.7 ms GPU sleep measured as 98.8 ms |
+
+Still open: the 2 GiB/GPU scratch cap is a contract, not enforced; the actual
+Harness site profile (container, root `uid` mode) has not been exercised, only
+the Landlock mode on the delegated GB200 node; the image has not been built.

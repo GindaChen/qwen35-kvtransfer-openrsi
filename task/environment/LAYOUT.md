@@ -1,6 +1,6 @@
 # Qwen3.5 hybrid transfer kernel experiment
 
-Scope: device-to-device state transfer only. No weights, model forward, inference server or NIXL service. Baseline is naive Torch, not a community performance claim. One Python process addresses disjoint source/destination GPU sets; CUDA IPC process overhead is excluded.
+Scope: device-to-device state transfer only. No weights, model forward, inference server or NIXL service. Baseline is naive Torch, not a community performance claim. The historical protocol-0.2 development runner uses one process. Protocol 0.3 (scored) uses a trusted controller and a candidate worker isolated by the Harness `rsi-isolate`; its latency includes the request/acknowledgement round trip, a timed publish of fresh source payload and a timed private capture of the destination.
 
 ## Physical layouts and mapping
 
@@ -27,16 +27,13 @@ TP2 convolution must shard each Q/K/V segment independently. At TP1: Q2048|K2048
 
 ## Evaluation
 
-128 cases =4 TP pairs ×8 lengths ×2 batches ×2 page layouts. Lengths:4096,8192,32768,65536,4097,10034,32749,65521. Batches1,4. Source snapshots, every destination state element, source immutability, and untouched holes are checked on every invocation. Deliberate recurrent corruption was rejected. Timing includes candidate metadata upload and all four device synchronizations, excludes payload generation/snapshots/checking/initial JIT. Initial full baseline:3 warmups+10 samples; final comparisons should use10+50. Both reference and candidates use the same timing boundary. Actual scratch accounting is a research contract, not a hardened malicious-code sandbox.
+The workload has 192 cases: four TP pairs × eight context lengths × batches 1/4 × three layouts. Both implementations use 10 warmups and 50 samples per case, plus two initial correctness invocations. All state families, source preservation and destination holes are checked on every invocation.
 
-## Code for review
+`benchmark.py` retains the layout, reference and independent checker definitions and an in-process development runner (never scored). `isolated_benchmark.py` owns the protocol-0.3 clock, checks and result file; `isolated_worker.py` imports the candidate only inside `rsi-isolate`. The candidate API is unchanged: `transfer(plan)` receives the same plan dictionary, with tensors that are views of dedicated CUDA VMM allocations owned by the controller.
 
-- `benchmark.py`: mapping generation, allocation, Torch reference, independent checker and timer.
-- `remote.py`: submits a bounded job to the existing ticket dispatcher, fetches artifacts.
-- `dispatch.py`: verifies holder PID and fresh ticket status, pins to the delegated node, kills its own subprocess on timeout/ticket loss; preserves the outer hold.
-- `AGENTS.md`: allowed research scope and commands.
+Outside timing: per-case allocation and publication of those buffers, per-invocation maps, payload generation, destination poison, expected snapshots, all checking, and initial import/JIT. Inside timing: (1) the controller writes the fresh payload into the source KV pages and selected source state slots, so no work can start before the clock; (2) the request carrying the maps; (3) the candidate transfer, the worker's four-device synchronisation and its acknowledgement; (4) a controller-private copy of the destination KV buffers and selected destination state slots. Both implementations pay identical (1), (2) and (4). Historical protocol-0.1/0.2 timings use different boundaries and are not comparable scores. See docs/protocol03/README.md.
 
-GPU work must run only under an operator-provided valid allocation. Machine identities, SSH settings, connection addresses and ticket records belong in private operator logs, not published task artifacts.
+Private SSH launchers, allocation bindings and operator logs are not task assets and must never enter the environment build context.
 
 ## Evaluator plan integrity
 
