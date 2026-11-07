@@ -1,4 +1,6 @@
-"""Transfer-only Qwen3.5 state benchmark. Evaluator authority; do not edit during research."""
+"""Transfer-only Qwen3.5 state definitions, Torch reference, independent checker and an
+in-process DEVELOPMENT runner. Official scoring uses isolated_benchmark.py (protocol 0.3):
+this file's main() shares one process with the candidate and is never a scored result."""
 
 import argparse
 import ast

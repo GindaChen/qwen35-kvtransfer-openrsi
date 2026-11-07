@@ -1,7 +1,7 @@
 schema_version = "1.4"
 [task]
 name = "rsi/qwen35-hybrid-kvtransfer-gb200"
-version = "0.2.0"
+version = "0.3.0"
 description = "Optimize all three Qwen3.5 state transfers across TP1/TP2 on four GB200 GPUs."
 [metadata]
 author_name = "Junda Chen"
